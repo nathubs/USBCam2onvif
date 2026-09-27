@@ -1,0 +1,53 @@
+name: Deploy external site to GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Branch, tag, or commit to publish from nathubs/ucam2onvif"
+        required: false
+        default: "main"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout private source repository
+        uses: actions/checkout@v4
+        with:
+          repository: nathubs/ucam2onvif
+          ref: ${{ inputs.source_ref }}
+          path: source
+          ssh-key: ${{ secrets.UCAM2ONVIF_DEPLOY_KEY }}
+
+      - name: Check source site directory
+        run: |
+          if [ ! -d "source/site" ]; then
+            echo "The source repository does not contain a site directory at ./site." >&2
+            exit 1
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./source/site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
